@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>R.U.T. — Rise Up Together</title>
+<meta name="description" content="Squads de 4 personas, una racha compartida, 30 días para publicar tu primer proyecto web. Empieza gratis, con plan Pro opcional.">
+
+<!--
+  R.U.T. HUB — MVP funcional
+  ==========================
+  Versión 2: mensajería propia YA construida (Supabase Realtime, sección #dashboard).
+  Versión 3: editor colaborativo YA construido (Supabase Realtime broadcast + presence,
+  sección #dashboard, junto al chat). Requiere la tabla squad_editor_docs — ver schema.sql.
+  Versión 4: videollamada YA construida (WebRTC nativo con señalización por Supabase
+  Realtime, canal call-{squadId}; sin tabla nueva). Usa solo un STUN público — en redes
+  muy restrictivas haría falta además un servidor TURN.
+  Versión 5: verificación con GitHub YA conectada (API pública, sin OAuth) — el usuario
+  guarda su usuario de GitHub y R.U.T. confirma si tuvo push hoy, tanto al guardar el
+  usuario como al registrar evidencia.
+  Versión 6: empleabilidad YA construida (checklist de LinkedIn + bolsa de empleo con
+  empresas aliadas, sección #empleabilidad) — fusionada aquí junto con el editor
+  colaborativo, la videollamada y GitHub en un solo archivo funcional.
+  (La ruta de lecciones estilo Duolingo, sección #lecciones, también está construida y
+  activa desde la versión 1 de este archivo.)
+
+  ARCHIVOS DEL PROYECTO: index.html (estructura), style.css (estilos), script.js (lógica
+  y credenciales de Supabase) y schema.sql (tablas y RLS a correr en Supabase).
+
+  ANTES DE DESPLEGAR, revisa SUPABASE_URL y SUPABASE_ANON_KEY al inicio de script.js
+  (ya vienen con las credenciales del proyecto de Supabase actual — reemplázalas si usas
+  otro proyecto), y corre schema.sql completo en el SQL Editor de Supabase primero.
+  GitHub y LinkedIn (sección #integraciones) son extras opcionales, no dependencias:
+  no piden llaves porque usan la API pública de GitHub y el share-link de LinkedIn.
+-->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="devBanner" class="dev-banner" style="display:none;">
+  Configura SUPABASE_URL y SUPABASE_ANON_KEY en el script para activar login y datos reales.
+</div>
+
+<header>
+  <nav>
+    <a href="#inicio" class="logo"><span class="logo-mark"></span> R.U.T.</a>
+    <div class="nav-links">
+      <a href="#como-funciona">Cómo funciona</a>
+      <a href="#dashboard">Tu squad</a>
+      <a href="#curriculo">Currículo</a>
+      <a href="#lecciones">Lecciones</a>
+      <a href="#empleabilidad">Empleabilidad</a>
+      <a href="#planes">Planes</a>
+      <a href="#integraciones">Integraciones</a>
+    </div>
+    <div class="nav-cta">
+      <button class="btn btn-ghost btn-sm" id="navAuthBtn" onclick="abrirModal()">Entrar</button>
+    </div>
+  </nav>
+</header>
+
+<section class="hero" id="inicio">
+  <div class="wrap">
+    <span class="eyebrow">Squads de 4 · 30 días · gratis</span>
+    <h1>Rise Up<br><span>Together</span></h1>
+    <p>Cuatro desconocidos, una sola racha compartida y 15 minutos al día para publicar tu primer proyecto web.</p>
+    <div class="hero-ctas">
+      <button class="btn btn-primary" onclick="abrirModal()">Únete a un squad</button>
+      <button class="btn btn-ghost" onclick="activarModoDemo()">Ver demo en vivo</button>
+    </div>
+    <svg class="hero-circuit" viewBox="0 0 600 180" aria-hidden="true">
+      <path class="circuit-trace" d="M50 150 C 150 150, 150 110, 220 100 S 340 60, 380 55 S 480 30, 550 25"/>
+      <circle class="circuit-node n1" cx="50" cy="150" r="12"/>
+      <circle class="circuit-node n2" cx="220" cy="100" r="12"/>
+      <circle class="circuit-node n3" cx="380" cy="55" r="12"/>
+      <circle class="circuit-node n4" cx="550" cy="25" r="12"/>
+      <text class="circuit-label" x="50" y="172" text-anchor="middle">tú</text>
+      <text class="circuit-label" x="220" y="122" text-anchor="middle">squad</text>
+      <text class="circuit-label" x="380" y="77" text-anchor="middle">racha</text>
+      <text class="circuit-label" x="550" y="47" text-anchor="middle">portafolio</text>
+    </svg>
+  </div>
+</section>
+
+<div class="problema">
+  <div class="wrap">
+    <p>Las redes muestran éxito sin fricción todos los días. <strong>R.U.T. reemplaza la comparación con acción</strong>: un squad que no te deja fallar solo.</p>
+  </div>
+</div>
+
+<section id="como-funciona">
+  <div class="wrap">
+    <span class="eyebrow">Arquitectura</span>
+    <h2>Tres pilares, sin mentores uno a uno</h2>
+    <p class="section-lead">El motor no es un mentor caro por usuario. Es el squad mismo, apoyado en dinámicas de compromiso público.</p>
+    <div class="grid-3">
+      <div class="card">
+        <span class="pilar-num">01 — Matchmaking</span>
+        <h3>Squad de 4</h3>
+        <p>Te agrupamos con 3 personas que no conoces, misma meta técnica y misma franja horaria. La fricción social de no fallarle a extraños duplica la constancia frente a grupos de amigos.</p>
+      </div>
+      <div class="card">
+        <span class="pilar-num">02 — Gamificación</span>
+        <h3>Racha del escuadrón</h3>
+        <p>Una sola racha compartida. Los 4 registran evidencia cada día — si uno falla, la racha del equipo se detiene, no solo la tuya.</p>
+      </div>
+      <div class="card">
+        <span class="pilar-num">03 — Roles rotativos</span>
+        <h3>Cambian cada semana</h3>
+        <p>Capitán, Auditor y Guardián del Tiempo rotan automáticamente cada lunes. Nadie carga solo con el liderazgo del grupo.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="dashboard">
+  <div class="wrap">
+    <span class="eyebrow">En vivo</span>
+    <h2>Tu squad</h2>
+    <p class="section-lead">Entra con tu correo para que el sistema te asigne un squad y empieces a registrar evidencia hoy.</p>
+    <div class="card">
+      <div class="auth-gate" id="authGate">
+        <p style="color:var(--text); font-weight:600; margin-bottom:2px;">Todavía no iniciaste sesión</p>
+        <p>Crea tu cuenta gratis y el sistema te une al primer squad con cupo, o abre uno nuevo si no hay ninguno disponible.</p>
+        <button class="btn btn-primary" onclick="abrirModal()">Crear cuenta gratis</button>
+      </div>
+      <div class="squad-panel" id="squadPanel">
+        <div class="squad-header">
+          <div class="streak-badge">
+            <div>
+              <div class="streak-num" id="streakNum">0</div>
+              <div class="streak-label">días de racha</div>
+            </div>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="cerrarSesion()">Cerrar sesión</button>
+        </div>
+        <div class="member-grid" id="memberGrid"></div>
+        <div class="chat-panel">
+          <div class="chat-messages" id="chatMessages" role="log" aria-live="polite" aria-label="Mensajes del squad"></div>
+          <form class="chat-input-row" onsubmit="return enviarMensaje(event)">
+            <label for="chatInput" class="sr-only">Mensaje para tu squad</label>
+            <input class="field" id="chatInput" placeholder="Escribe algo para tu squad..." aria-label="Mensaje para tu squad" autocomplete="off">
+            <button type="submit" class="btn btn-primary btn-sm">Enviar</button>
+          </form>
+        </div>
+        <div class="editor-panel">
+          <div class="editor-header">
+            <h4>Editor colaborativo del squad</h4>
+            <div class="editor-presence" id="editorPresence" aria-label="Miembros conectados al editor"></div>
+            <span class="editor-status" id="editorStatus">Guardado</span>
+          </div>
+          <label for="editorTextarea" class="sr-only">Código compartido del proyecto del squad</label>
+          <textarea class="editor-textarea" id="editorTextarea" spellcheck="false" placeholder="// Escribe aquí el código del proyecto del squad — todos lo ven en vivo"></textarea>
+          <div class="editor-footer">Cambios en vivo para los 4 del squad. Se guarda automáticamente.</div>
+        </div>
+        <div class="call-panel" id="callPanel">
+          <div class="call-header">
+            <h4>Videollamada del squad</h4>
+            <button class="btn btn-primary btn-sm" id="btnLlamada" onclick="alternarLlamada()">Iniciar videollamada</button>
+          </div>
+          <div class="call-grid" id="callGrid" style="display:none;" aria-label="Video de los miembros en la llamada"></div>
+          <div class="call-controls" id="callControls" style="display:none;">
+            <button class="call-btn" id="btnMic" onclick="alternarMic()" aria-label="Silenciar micrófono">🎤</button>
+            <button class="call-btn" id="btnCam" onclick="alternarCam()" aria-label="Apagar cámara">📷</button>
+            <button class="call-btn hangup" onclick="colgarLlamada()" aria-label="Colgar llamada">✕</button>
+          </div>
+        </div>
+        <div class="ad-slot" id="adSlot">
+          <span class="ad-label">Publicidad</span>
+          <div class="ad-content"><strong>Capacítate para el Empleo</strong> — cursos gratuitos que complementan tu ruta. <a href="https://capacitateparaelempleo.org/" target="_blank" rel="noopener">Ver cursos →</a></div>
+        </div>
+        <form class="evidence-form" id="evidenceForm" onsubmit="return registrarEvidencia(event)">
+          <label for="evidenceDesc" class="sr-only">Qué construiste hoy</label>
+          <input class="field" id="evidenceDesc" placeholder="¿Qué construiste hoy? Ej: Navbar responsive con flexbox" aria-label="Qué construiste hoy" required>
+          <label for="evidenceLink" class="sr-only">Enlace de evidencia</label>
+          <input class="field" type="url" id="evidenceLink" placeholder="https://... (repo, captura, deploy)" aria-label="Enlace de evidencia" style="max-width:240px;">
+          <button type="submit" class="btn btn-primary">Registrar evidencia</button>
+        </form>
+        <div class="modal-msg" id="evidenceMsg" role="status" aria-live="polite" style="padding:0 28px 16px;"></div>
+        <div id="evidenceShareRow" style="padding:0 28px 20px;"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="curriculo">
+  <div class="wrap">
+    <span class="eyebrow">Piloto técnico</span>
+    <h2>30 días, frontend web</h2>
+    <p class="section-lead">Sin parálisis por análisis: una habilidad, resultados visibles cada día. Los recursos son de plataformas gratuitas que ya existen — no los reconstruimos.</p>
+
+    <div class="week">
+      <div class="week-num">01</div>
+      <div>
+        <h3>Estructura y estilo (HTML5 y CSS3)</h3>
+        <p>Etiquetas semánticas, modelo de caja, diseño fluido. El squad sube captura diaria del render local y se revisa entre sí.</p>
+        <div class="res-links">
+          <a class="res-link" href="https://coddy.tech/landing/es/html" target="_blank" rel="noopener">Coddy: HTML + CSS <span aria-hidden="true">↗</span></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="week">
+      <div class="week-num">02</div>
+      <div>
+        <h3>Interactividad (JavaScript esencial)</h3>
+        <p>Variables, funciones, eventos del DOM. Se intercambian micro-videos demostrando una función real, como un modo oscuro funcional.</p>
+        <div class="res-links">
+          <a class="res-link" href="https://coddy.tech/landing/es/javascript" target="_blank" rel="noopener">Coddy: JavaScript <span aria-hidden="true">↗</span></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="week">
+      <div class="week-num">03</div>
+      <div>
+        <h3>Proyecto del escuadrón (colaboración real)</h3>
+        <p>Una web para un negocio local o ficticio. Cada quien asume una sección — navegación, landing, formularios, catálogo — en un mismo repositorio.</p>
+        <div class="res-links">
+          <a class="res-link" href="https://coddy.tech/landing/es/git" target="_blank" rel="noopener">Coddy: Git <span aria-hidden="true">↗</span></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="week">
+      <div class="week-num">04</div>
+      <div>
+        <h3>Despliegue y Demo Day</h3>
+        <p>Publicación en Netlify o Vercel, feedback de un mentor real y estrategia de inserción al mercado freelance.</p>
+        <div class="res-links">
+          <a class="res-link ext" href="https://coddy.tech/certifications/es" target="_blank" rel="noopener">Coddy: certificado <span aria-hidden="true">↗</span></a>
+          <a class="res-link ext" href="https://capacitateparaelempleo.org/" target="_blank" rel="noopener">Capacítate para el Empleo <span aria-hidden="true">↗</span></a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="planes">
+  <div class="wrap">
+    <span class="eyebrow">Modelo</span>
+    <h2>Gratis para empezar, Pro para acelerar</h2>
+    <p class="section-lead">Publicidad no invasiva sostiene el plan gratuito. Quien quiere revisión humana y sin anuncios, pasa a Pro.</p>
+    <div class="grid-2">
+      <div class="plan-card">
+        <span class="badge badge-link">Gratis</span>
+        <div class="plan-precio">Q0<span> / siempre</span></div>
+        <ul class="plan-lista">
+          <li>1 squad activo</li>
+          <li>Chat, evidencia y racha del squad</li>
+          <li>Ruta de lecciones completa</li>
+          <li>Soporte automatizado por IA</li>
+          <li>Con publicidad no invasiva</li>
+        </ul>
+      </div>
+      <div class="plan-card destacado">
+        <span class="badge badge-real">R.U.T. Pro</span>
+        <div class="plan-precio">Q120<span> / mes</span></div>
+        <ul class="plan-lista">
+          <li>Todo lo del plan gratuito</li>
+          <li>Sin publicidad</li>
+          <li>Revisión de código por desarrolladores reales</li>
+          <li>Tutorías grupales exclusivas</li>
+          <li>Squads y proyectos ilimitados</li>
+        </ul>
+        <button class="btn btn-primary" style="width:100%; justify-content:center;" onclick="abrirModal()">Empezar Pro</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="integraciones">
+  <div class="wrap">
+    <span class="eyebrow">Qué es nativo y qué es extra</span>
+    <h2>Todo lo esencial vive adentro de R.U.T.</h2>
+    <p class="section-lead">La mensajería, el editor colaborativo, las videollamadas y la ruta de lecciones ya son propios (arriba, en vivo). Estas otras piezas son extras gratuitos, no la columna vertebral.</p>
+    <div class="grid-2">
+      <div class="integ-card">
+        <div class="integ-top"><h3>Chat del squad</h3><span class="badge badge-real">Nativo — listo</span></div>
+        <p>Mensajería propia con Supabase Realtime, arriba en el dashboard. Nada de salir a Discord.</p>
+      </div>
+      <div class="integ-card">
+        <div class="integ-top"><h3>Editor colaborativo</h3><span class="badge badge-real">Nativo — listo</span></div>
+        <p>Edición en vivo del proyecto del squad, tipo Google Docs pero para código, sin salir de R.U.T. — arriba en el dashboard, junto al chat.</p>
+      </div>
+      <div class="integ-card">
+        <div class="integ-top"><h3>Videollamadas</h3><span class="badge badge-real">Nativo — listo</span></div>
+        <p>Video en vivo del squad con WebRTC directo en el navegador — arriba en el dashboard, sin cuenta de Google ni Meet.</p>
+      </div>
+      <div class="integ-card">
+        <div class="integ-top"><h3>Ruta de lecciones</h3><span class="badge badge-real">Nativo — listo</span></div>
+        <p>Motor propio estilo Duolingo — racha, XP, vidas — con temas más allá de código (cocina, ventas, marketing). Progreso guardado por usuario.</p>
+      </div>
+      <div class="integ-card">
+        <div class="integ-top"><h3>Empleabilidad</h3><span class="badge badge-real">Nativo — listo</span></div>
+        <p>Checklist de corrección de LinkedIn y bolsa de empleo con empresas aliadas que se desbloquea con lecciones completadas — abajo, en su propia sección.</p>
+      </div>
+      <div class="integ-card">
+        <div class="integ-top"><h3>GitHub</h3><span class="badge badge-link">Extra opcional</span></div>
+        <p>Verificación automática de evidencia vía API pública, sin OAuth ni costo — un bono, no una dependencia.</p>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <label for="githubUsuarioInput" class="sr-only">Tu usuario de GitHub</label>
+          <input class="field" id="githubUsuarioInput" placeholder="tu-usuario-de-github" aria-label="Tu usuario de GitHub" style="max-width:200px;">
+          <button class="btn btn-ghost btn-sm" onclick="guardarYVerificarGithub()">Guardar y verificar hoy</button>
+        </div>
+        <div class="modal-msg" id="githubMsg" role="status" aria-live="polite"></div>
+      </div>
+      <div class="integ-card">
+        <div class="integ-top"><h3>LinkedIn</h3><span class="badge badge-link">Extra opcional</span></div>
+        <p>Botón de compartir tu evidencia o tus lecciones completadas. Lo único de LinkedIn que es gratis para cualquiera.</p>
+        <button class="btn btn-ghost btn-sm" onclick="compartirEnLinkedIn(window.location.href,'Estoy construyendo mi primer proyecto web con mi squad en R.U.T. — 30 días, sin mentores caros, solo compromiso compartido. 🚀','linkedinMsg')">Compartir progreso</button>
+        <div class="modal-msg" id="linkedinMsg" role="status" aria-live="polite"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="lecciones">
+  <div class="wrap">
+    <span class="eyebrow">Motor propio</span>
+    <h2>Ruta de lecciones</h2>
+    <p class="section-lead">Estilo Duolingo, pero con las materias que tu squad necesite — no solo código.</p>
+    <div class="stats-bar">
+      <div class="stat"><div class="stat-val" id="xpTotalDisplay">0</div><div class="stat-lab">XP</div></div>
+      <div class="stat"><div class="stat-val" id="leccionesCompletadasDisplay">0</div><div class="stat-lab">lecciones</div></div>
+    </div>
+    <div class="materia-tabs" id="materiaTabs"></div>
+    <div class="leccion-path" id="leccionPath"></div>
+  </div>
+</section>
+
+<section id="empleabilidad">
+  <div class="wrap">
+    <span class="eyebrow">De la racha al empleo</span>
+    <h2>Perfil de LinkedIn y bolsa de empleo</h2>
+    <p class="section-lead">Corrige tu perfil punto por punto y, al completar tus lecciones, desbloquea las vacantes de las empresas aliadas de R.U.T.</p>
+
+    <div class="empleo-grid">
+      <div class="card" style="padding:26px;">
+        <div class="li-progreso-wrap">
+          <svg class="li-ring" viewBox="0 0 64 64">
+            <circle class="fondo" cx="32" cy="32" r="26"></circle>
+            <circle class="progreso" id="liRingCircle" cx="32" cy="32" r="26" stroke-dasharray="163.4" stroke-dashoffset="163.4"></circle>
+            <text class="li-ring-num" id="liRingNum" x="32" y="34">0%</text>
+          </svg>
+          <div>
+            <p style="font-weight:600; margin:0 0 2px;">Corrección de tu perfil</p>
+            <p style="color:var(--text-dim); font-size:.86rem; margin:0;" id="liResumen">0 de 0 puntos corregidos.</p>
+          </div>
+        </div>
+
+        <div class="li-url-row">
+          <label for="liUrlInput" class="sr-only">URL de tu perfil de LinkedIn</label>
+          <input class="field" id="liUrlInput" placeholder="Pega la URL de tu perfil: linkedin.com/in/tu-nombre" aria-label="URL de tu perfil de LinkedIn">
+          <button class="btn btn-ghost btn-sm" onclick="guardarLinkedInUrl()">Guardar</button>
+        </div>
+
+        <ul class="li-checklist" id="liChecklist"></ul>
+      </div>
+
+      <div class="empleo-side">
+        <div class="requisito-box">
+          <div class="req-titulo">Requisito para desbloquear vacantes</div>
+          <div class="req-bar-track"><div class="req-bar-fill" id="reqBarFill" style="width:0%;"></div></div>
+          <div class="req-nota" id="reqNota">Completa <span id="reqLeccionesFaltan">4</span> lecciones y el 70% del checklist de LinkedIn para postularte con empresas aliadas.</div>
+        </div>
+
+        <div id="empresasLista" style="display:flex; flex-direction:column; gap:14px;"></div>
+      </div>
+    </div>
+
+    <div class="mentor-cta">
+      <div>
+        <h3>¿Quieres que un reclutador revise tu perfil?</h3>
+        <p>En R.U.T. Pro un mentor humano corrige tu LinkedIn y tu portafolio antes de postularte.</p>
+      </div>
+      <button class="btn btn-primary" onclick="document.getElementById('planes').scrollIntoView({behavior:'smooth'})">Ver R.U.T. Pro</button>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">R.U.T. — Rise Up Together. Piloto Guatemala.</div>
+</footer>
+
+<div class="player-bg" id="playerBg">
+  <div class="player">
+    <div class="player-top">
+      <div class="hearts" id="heartsDisplay"></div>
+      <button class="player-close" onclick="cerrarLeccion()" aria-label="Cerrar">×</button>
+    </div>
+    <h3 id="preguntaTexto" style="margin-bottom:18px;" role="status" aria-live="polite"></h3>
+    <div id="opcionesContainer"></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalBg" onclick="if(event.target===this) cerrarModal()">
+  <div class="modal">
+    <button class="modal-close" onclick="cerrarModal()" aria-label="Cerrar">×</button>
+    <div class="modal-tabs">
+      <button class="modal-tab active" id="tabLogin" onclick="cambiarTab('login')">Entrar</button>
+      <button class="modal-tab" id="tabSignup" onclick="cambiarTab('signup')">Crear cuenta</button>
+    </div>
+    <h3 id="modalTitle">Entrar a tu squad</h3>
+    <label for="authNombre" class="sr-only" id="labelNombre" style="display:none;">Nombre</label>
+    <input class="field" type="text" id="authNombre" placeholder="Nombre" aria-label="Nombre" autocomplete="name" style="display:none;">
+    <label for="authEmail" class="sr-only">Correo electrónico</label>
+    <input class="field" type="email" id="authEmail" placeholder="Correo" aria-label="Correo electrónico" autocomplete="email">
+    <label for="authPass" class="sr-only">Contraseña</label>
+    <input class="field" type="password" id="authPass" placeholder="Contraseña" aria-label="Contraseña" autocomplete="current-password" minlength="6">
+    <label for="authPassConfirm" class="sr-only" id="labelPassConfirm" style="display:none;">Confirmar contraseña</label>
+    <input class="field" type="password" id="authPassConfirm" placeholder="Confirma tu contraseña" aria-label="Confirmar contraseña" autocomplete="new-password" minlength="6" style="display:none;">
+    <p id="passHint" style="display:none; font-size:.78rem; color:var(--text-faint); margin:-6px 0 12px;">Mínimo 6 caracteres.</p>
+    <label for="authDisponibilidad" class="sr-only" id="labelDisponibilidad" style="display:none;">Disponibilidad</label>
+    <select class="field" id="authDisponibilidad" aria-label="Disponibilidad" style="display:none;">
+      <option value="manana">Disponible en la mañana</option>
+      <option value="tarde">Disponible en la tarde</option>
+      <option value="noche">Disponible en la noche</option>
+    </select>
+    <button class="btn btn-primary" style="width:100%; justify-content:center; margin-top:6px;" onclick="enviarAuth()">Continuar</button>
+    <button class="btn btn-ghost btn-sm" id="btnOlvide" style="width:100%; justify-content:center; margin-top:8px;" onclick="recuperarPassword()">¿Olvidaste tu contraseña?</button>
+    <div class="modal-msg" id="authMsg" role="status" aria-live="polite"></div>
+  </div>
+</div>
+
+<script src="script.js" defer></script>
+</body>
+</html>
