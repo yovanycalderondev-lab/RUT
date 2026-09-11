@@ -1,0 +1,20 @@
+{
+  "name": "R.U.T. — Rise Up Together",
+  "short_name": "R.U.T.",
+  "description": "Squads de 4 personas, una racha compartida, 30 días para publicar tu primer proyecto web.",
+  "icons": [
+    {
+      "src": "android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#0A2540",
+  "background_color": "#ffffff",
+  "display": "standalone"
+}
